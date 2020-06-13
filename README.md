@@ -1,2 +1,2 @@
 # minesweeper
-My stage 4 of 5 for JetBrains Academy Kotlin Minesweeper project. It will gradually be updated to the stage 5 requirements to shows changes made to stage 4.
+My stage 5 for JetBrains Academy Kotlin Minesweeper project. Allows the user to select number of bombs. Mark fields they think are mines and free fields that they think are not.
