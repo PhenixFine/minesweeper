@@ -1,41 +1,96 @@
 import java.util.*
 
 object Minesweeper {
-    private val scanner = Scanner(System.`in`)
-    private var lines = Array(9) { Array(9) { 0 } }
-    private var view = Array(9) { Array(9) { 0 } } // 0 = hidden, 1 = show, 2 = marked
-    private var bombs = 0
-    private var fakeBombs = 0
-    private var freeLeft = 81 // number of fields not yet shown to user ( bombs will get subtracted from it )
-    private var setBombs = false
-    private var first = true // for first run through of the surrounding() function
-    private var lost = false
-    private const val strErrorNum = " was not a number, please try again: "
+    private val SCANNER = Scanner(System.`in`)
+    private var LINES = Array(9) { Array(9) { 0 } }
+    private var VIEW = Array(9) { Array(9) { 0 } } // 0 = hidden, 1 = show, 2 = marked
+    private var BOMBS = 0
+    private var FAKE_BOMBS = 0
+    private var FREE_LEFT = 81 // number of fields not yet shown to user ( bombs will get subtracted from it )
+    private var SET_BOMBS = false
+    private var FIRST = true // for first run through of the surrounding() function
+    private var LOST = false
 
-    private fun bombsSet() {
-        repeat(bombs) {
-            var changed = false
-            while (!changed) {
-                val num1 = (0..8).random()
-                val num2 = (0..8).random()
-                if (lines[num1][num2] != 11 && view[num1][num2] != 1) {
-                    lines[num1][num2] = 11
-                    changed = true
-                    surroundCheck(num1, num2)
+    private fun isNumber(number: String) = number.toIntOrNull() != null
+
+    private fun getNum(text: String, defaultMessage: Boolean = true): Int {
+        val strErrorNum = " was not a number, please try again: "
+        var num = text
+        var default = defaultMessage
+
+        do {
+            println(if (default) num else num + strErrorNum)
+            if (!default) default = true
+            num = readLine()!!
+        } while (!isNumber(num))
+
+        return num.toInt()
+    }
+
+    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
+
+    private fun getRange(num: Int, range: IntRange): Int {
+        var num2 = num
+        do {
+            num2 = getNum("$num2 was out of range. Please enter a number ${range.first} to ${range.last}: ", false)
+        } while (notRange(num2, range))
+        return num2
+    }
+
+    // this useful random function was found on Stack Overflow
+    private fun IntRange.random() = Random().nextInt(endInclusive + 1 - start) + start
+
+    private fun initialize() {
+        BOMBS = getNum("How many mines do you want on the field? ", false)
+        if (notRange(BOMBS, 1..71)) BOMBS = getRange(BOMBS, 1..71)
+        FREE_LEFT -= BOMBS
+
+        while (!SET_BOMBS) {
+            printField()
+            fieldAction()
+        }
+        for (num1 in LINES.indices) { // in case user marked bombs before freeing a field
+            for (num2 in LINES.indices) {
+                if (VIEW[num1][num2] == 2 && LINES[num1][num2] == 11) {
+                    FAKE_BOMBS -= 1
+                    BOMBS -= 1
                 }
             }
         }
+    }
+
+    private fun printField() {
+        val strLine = "—│—————————│"
+        println("\n │123456789│")
+        println(strLine)
+        for (num in LINES.indices) {
+            print("${num + 1}│")
+            for (num2 in LINES[num].indices) {
+                print(
+                    when {
+                        LINES[num][num2] == 11 && LOST -> "X"
+                        VIEW[num][num2] == 2 && !LOST -> "*"
+                        VIEW[num][num2] == 1 -> {
+                            if (LINES[num][num2] == 0) "/" else LINES[num][num2]
+                        }
+                        else -> "."
+                    }
+                )
+            }
+            println("│")
+        }
+        println(strLine)
     }
 
     private fun fieldAction() {
         var marked = false
         while (!marked) {
             print("Set/unset mine marks or claim a cell as free: ")
-            val str1 = scanner.next()
-            val str2 = scanner.next()
-            val str3 = scanner.next().toLowerCase()
-            var num2 = if (isNumber(str1)) str1.toInt() else getNum("$str1$strErrorNum")
-            var num1 = if (isNumber(str2)) str2.toInt() else getNum("$str2$strErrorNum")
+            val str1 = SCANNER.next()
+            val str2 = SCANNER.next()
+            val str3 = SCANNER.next().toLowerCase()
+            var num2 = if (isNumber(str1)) str1.toInt() else getNum(str1)
+            var num1 = if (isNumber(str2)) str2.toInt() else getNum(str2)
             if (notRange(num1, 1..9)) num1 = getRange(num1, 1..9)
             if (notRange(num2, 1..9)) num2 = getRange(num2, 1..9)
             num1 -= 1
@@ -49,32 +104,32 @@ object Minesweeper {
     }
 
     private fun free(num1: Int, num2: Int): Boolean {
-        if (!setBombs) { // sets up the view that bombsSet() needs to work
-            if (view[num1][num2] == 2) fakeBombs -= 1
-            view[num1][num2] = 1
+        if (!SET_BOMBS) { // sets up the view that bombsSet() needs to work
+            if (VIEW[num1][num2] == 2) FAKE_BOMBS -= 1
+            VIEW[num1][num2] = 1
             surroundCheck(num1, num2)
-            first = false
+            FIRST = false
             bombsSet()
-            for (numA in view.indices) { // resets the view, so that open fields can be shown
-                for (numB in view[numA].indices) {
-                    if (view[numA][numB] == 1) view[numA][numB] = 0
+            for (numA in VIEW.indices) { // resets the view, so that open fields can be shown
+                for (numB in VIEW[numA].indices) {
+                    if (VIEW[numA][numB] == 1) VIEW[numA][numB] = 0
                 }
             }
-            view[num1][num2] = 1
-            setBombs = true
-            freeLeft -= 1
+            VIEW[num1][num2] = 1
+            SET_BOMBS = true
+            FREE_LEFT -= 1
             surroundCheck(num1, num2)
             return true
         } else { // frees a field if it is not a bomb or already free
-            if (lines[num1][num2] == 11) {
-                lost = true
+            if (LINES[num1][num2] == 11) {
+                LOST = true
                 return true
             } else {
-                when (view[num1][num2]) {
+                when (VIEW[num1][num2]) {
                     0 -> {
-                        view[num1][num2] = 1
-                        freeLeft -= 1
-                        if (lines[num1][num2] == 0) surroundCheck(num1, num2)
+                        VIEW[num1][num2] = 1
+                        FREE_LEFT -= 1
+                        if (LINES[num1][num2] == 0) surroundCheck(num1, num2)
                         return true
                     }
                     1 -> {
@@ -82,10 +137,10 @@ object Minesweeper {
                         return false
                     }
                     2 -> {
-                        view[num1][num2] = 1
-                        freeLeft -= 1
-                        if (lines[num1][num2] == 0) surroundCheck(num1, num2)
-                        fakeBombs -= 1
+                        VIEW[num1][num2] = 1
+                        FREE_LEFT -= 1
+                        if (LINES[num1][num2] == 0) surroundCheck(num1, num2)
+                        FAKE_BOMBS -= 1
                         return true
                     }
                 }
@@ -94,66 +149,42 @@ object Minesweeper {
         return false
     }
 
-    private fun getNum(text: String): Int {
-        print(text)
-        var num = readLine()!!
-        while (!isNumber(num)) {
-            print(num + strErrorNum)
-            num = readLine()!!
-        }
-        return num.toInt()
-    }
-
-    private fun getRange(num: Int, range: IntRange): Int {
-        var num2 = num
-        do {
-            num2 = getNum("$num2 was out of range. Please enter a number ${range.first} to ${range.last}: ")
-        } while (notRange(num2, range))
-        return num2
-    }
-
-    private fun initialize() {
-        bombs = getNum("How many mines do you want on the field? ")
-        if (notRange(bombs, 1..71)) bombs = getRange(bombs, 1..71)
-        freeLeft -= bombs
-
-        while (!setBombs) {
-            printField()
-            fieldAction()
-        }
-        for (num1 in lines.indices) { // in case user marked bombs before freeing a field
-            for (num2 in lines.indices) {
-                if (view[num1][num2] == 2 && lines[num1][num2] == 11) {
-                    fakeBombs -= 1
-                    bombs -= 1
+    private fun bombsSet() {
+        repeat(BOMBS) {
+            var changed = false
+            while (!changed) {
+                val num1 = (0..8).random()
+                val num2 = (0..8).random()
+                if (LINES[num1][num2] != 11 && VIEW[num1][num2] != 1) {
+                    LINES[num1][num2] = 11
+                    changed = true
+                    surroundCheck(num1, num2)
                 }
             }
         }
     }
 
-    private fun isNumber(number: String) = number.toIntOrNull() != null
-
     private fun markMine(num1: Int, num2: Int): Boolean {
-        if (lines[num1][num2] == 11) {
-            return if (view[num1][num2] == 0) {
-                bombs -= 1
-                view[num1][num2] = 2
+        if (LINES[num1][num2] == 11) {
+            return if (VIEW[num1][num2] == 0) {
+                BOMBS -= 1
+                VIEW[num1][num2] = 2
                 true
             } else {
-                bombs += 1
-                view[num1][num2] = 0
+                BOMBS += 1
+                VIEW[num1][num2] = 0
                 true
             }
         } else {
-            return when (view[num1][num2]) {
+            return when (VIEW[num1][num2]) {
                 0 -> {
-                    view[num1][num2] = 2
-                    fakeBombs += 1
+                    VIEW[num1][num2] = 2
+                    FAKE_BOMBS += 1
                     true
                 }
                 2 -> {
-                    view[num1][num2] = 0
-                    fakeBombs -= 1
+                    VIEW[num1][num2] = 0
+                    FAKE_BOMBS -= 1
                     true
                 }
                 else -> {
@@ -164,71 +195,43 @@ object Minesweeper {
         }
     }
 
-    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
-
-    private fun printField() {
-        val strLine = "—│—————————│"
-        println("\n │123456789│")
-        println(strLine)
-        for (num in lines.indices) {
-            print("${num + 1}│")
-            for (num2 in lines[num].indices) {
-                print(
-                    when {
-                        lines[num][num2] == 11 && lost -> "X"
-                        view[num][num2] == 2 && !lost -> "*"
-                        view[num][num2] == 1 -> {
-                            if (lines[num][num2] == 0) "/" else lines[num][num2]
-                        }
-                        else -> "."
-                    }
-                )
-            }
-            println("│")
-        }
-        println(strLine)
-    }
-
-    // this useful random function was found on Stack Overflow
-    private fun IntRange.random() = Random().nextInt(endInclusive + 1 - start) + start
-
     // checks fields around a given field and then calls surroundWork to do the work with each one
     private fun surroundCheck(num1: Int, num2: Int) {
-        if (num2 != 0 && lines[num1][num2 - 1] != 11) surroundWork(num1, num2 - 1)
-        if (num2 != 8 && lines[num1][num2 + 1] != 11) surroundWork(num1, num2 + 1)
+        if (num2 != 0 && LINES[num1][num2 - 1] != 11) surroundWork(num1, num2 - 1)
+        if (num2 != 8 && LINES[num1][num2 + 1] != 11) surroundWork(num1, num2 + 1)
         if (num1 != 0) {
-            if (lines[num1 - 1][num2] != 11) surroundWork(num1 - 1, num2)
-            if (num2 != 0 && lines[num1 - 1][num2 - 1] != 11) surroundWork(num1 - 1, num2 - 1)
-            if (num2 != 8 && lines[num1 - 1][num2 + 1] != 11) surroundWork(num1 - 1, num2 + 1)
+            if (LINES[num1 - 1][num2] != 11) surroundWork(num1 - 1, num2)
+            if (num2 != 0 && LINES[num1 - 1][num2 - 1] != 11) surroundWork(num1 - 1, num2 - 1)
+            if (num2 != 8 && LINES[num1 - 1][num2 + 1] != 11) surroundWork(num1 - 1, num2 + 1)
         }
         if (num1 != 8) {
-            if (lines[num1 + 1][num2] != 11) surroundWork(num1 + 1, num2)
-            if (num2 != 0 && lines[num1 + 1][num2 - 1] != 11) surroundWork(num1 + 1, num2 - 1)
-            if (num2 != 8 && lines[num1 + 1][num2 + 1] != 11) surroundWork(num1 + 1, num2 + 1)
+            if (LINES[num1 + 1][num2] != 11) surroundWork(num1 + 1, num2)
+            if (num2 != 0 && LINES[num1 + 1][num2 - 1] != 11) surroundWork(num1 + 1, num2 - 1)
+            if (num2 != 8 && LINES[num1 + 1][num2 + 1] != 11) surroundWork(num1 + 1, num2 + 1)
         }
     }
 
-    // does the work for surroundCheck. Has 3 different things it does depending on if it's the first run through and if all
-    // the bombs have been set yet. After first two cases have been satisfied it then is used to clear fields around an empty field.
+    // Has 3 different things it does depending on if it's the first run through and if all the bombs have been set yet.
+    // After first two cases have been satisfied it then is used to clear fields around an empty field.
     private fun surroundWork(num1: Int, num2: Int) {
-        if (!setBombs && !first) lines[num1][num2] += 1 else {
-            if (view[num1][num2] != 1) {
-                if (view[num1][num2] == 2) fakeBombs -= 1
-                view[num1][num2] = 1
-                if (!first) freeLeft -= 1
-                if (lines[num1][num2] == 0 && !first) surroundCheck(num1, num2)
+        if (!SET_BOMBS && !FIRST) LINES[num1][num2] += 1 else {
+            if (VIEW[num1][num2] != 1) {
+                if (VIEW[num1][num2] == 2) FAKE_BOMBS -= 1
+                VIEW[num1][num2] = 1
+                if (!FIRST) FREE_LEFT -= 1
+                if (LINES[num1][num2] == 0 && !FIRST) surroundCheck(num1, num2)
             }
         }
     }
 
     fun run() {
         initialize()
-        while ((fakeBombs > 0 || bombs > 0) && !lost && freeLeft != 0) {
+        while ((FAKE_BOMBS > 0 || BOMBS > 0) && !LOST && FREE_LEFT != 0) {
             printField()
             fieldAction()
         }
         printField()
-        println(if (lost) "You stepped on a mine and failed!" else "Congratulations! You found all the mines!")
+        println(if (LOST) "You stepped on a mine and failed!" else "Congratulations! You found all the mines!")
     }
 }
 
