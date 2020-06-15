@@ -11,34 +11,15 @@ object Minesweeper {
     private var FIRST = true // for first run through of the surrounding() function
     private var LOST = false
 
-    private fun isNumber(number: String) = number.toIntOrNull() != null
-
-    private fun getNum(text: String, defaultMessage: Boolean = true): Int {
-        val strErrorNum = " was not a number, please try again: "
-        var num = text
-        var default = defaultMessage
-
-        do {
-            println(if (default) num else num + strErrorNum)
-            if (!default) default = true
-            num = readLine()!!
-        } while (!isNumber(num))
-
-        return num.toInt()
+    fun run() {
+        initialize()
+        while ((FAKE_BOMBS > 0 || BOMBS > 0) && !LOST && FREE_LEFT != 0) {
+            printField()
+            fieldAction()
+        }
+        printField()
+        println(if (LOST) "You stepped on a mine and failed!" else "Congratulations! You found all the mines!")
     }
-
-    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
-
-    private fun getRange(num: Int, range: IntRange): Int {
-        var num2 = num
-        do {
-            num2 = getNum("$num2 was out of range. Please enter a number ${range.first} to ${range.last}: ", false)
-        } while (notRange(num2, range))
-        return num2
-    }
-
-    // this useful random function was found on Stack Overflow
-    private fun IntRange.random() = Random().nextInt(endInclusive + 1 - start) + start
 
     private fun initialize() {
         BOMBS = getNum("How many mines do you want on the field? ", false)
@@ -149,21 +130,6 @@ object Minesweeper {
         return false
     }
 
-    private fun bombsSet() {
-        repeat(BOMBS) {
-            var changed = false
-            while (!changed) {
-                val num1 = (0..8).random()
-                val num2 = (0..8).random()
-                if (LINES[num1][num2] != 11 && VIEW[num1][num2] != 1) {
-                    LINES[num1][num2] = 11
-                    changed = true
-                    surroundCheck(num1, num2)
-                }
-            }
-        }
-    }
-
     private fun markMine(num1: Int, num2: Int): Boolean {
         if (LINES[num1][num2] == 11) {
             return if (VIEW[num1][num2] == 0) {
@@ -190,6 +156,21 @@ object Minesweeper {
                 else -> {
                     println("open field cannot be marked")
                     false
+                }
+            }
+        }
+    }
+
+    private fun bombsSet() {
+        repeat(BOMBS) {
+            var changed = false
+            while (!changed) {
+                val num1 = (0..8).random()
+                val num2 = (0..8).random()
+                if (LINES[num1][num2] != 11 && VIEW[num1][num2] != 1) {
+                    LINES[num1][num2] = 11
+                    changed = true
+                    surroundCheck(num1, num2)
                 }
             }
         }
@@ -224,15 +205,34 @@ object Minesweeper {
         }
     }
 
-    fun run() {
-        initialize()
-        while ((FAKE_BOMBS > 0 || BOMBS > 0) && !LOST && FREE_LEFT != 0) {
-            printField()
-            fieldAction()
-        }
-        printField()
-        println(if (LOST) "You stepped on a mine and failed!" else "Congratulations! You found all the mines!")
+    private fun isNumber(number: String) = number.toIntOrNull() != null
+
+    private fun getNum(text: String, defaultMessage: Boolean = true): Int {
+        val strErrorNum = " was not a number, please try again: "
+        var num = text
+        var default = defaultMessage
+
+        do {
+            print(if (default) num + strErrorNum else num)
+            if (!default) default = true
+            num = readLine()!!
+        } while (!isNumber(num))
+
+        return num.toInt()
     }
+
+    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
+
+    private fun getRange(num: Int, range: IntRange): Int {
+        var num2 = num
+        do {
+            num2 = getNum("$num2 was out of range. Please enter a number ${range.first} to ${range.last}: ", false)
+        } while (notRange(num2, range))
+        return num2
+    }
+
+    // this useful random function was found on Stack Overflow
+    private fun IntRange.random() = Random().nextInt(endInclusive + 1 - start) + start
 }
 
 fun main() {
