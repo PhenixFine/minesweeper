@@ -205,8 +205,6 @@ object Minesweeper {
         }
     }
 
-    private fun isNumber(number: String) = number.toIntOrNull() != null
-
     private fun getNum(text: String, defaultMessage: Boolean = true): Int {
         val strErrorNum = " was not a number, please try again: "
         var num = text
@@ -221,8 +219,6 @@ object Minesweeper {
         return num.toInt()
     }
 
-    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
-
     private fun getRange(num: Int, range: IntRange): Int {
         var num2 = num
         do {
@@ -230,6 +226,10 @@ object Minesweeper {
         } while (notRange(num2, range))
         return num2
     }
+
+    private fun notRange(num: Int, range: IntRange) = (!range.contains(num))
+
+    private fun isNumber(number: String) = number.toIntOrNull() != null
 
     // this useful random function was found on Stack Overflow
     private fun IntRange.random() = Random().nextInt(endInclusive + 1 - start) + start
